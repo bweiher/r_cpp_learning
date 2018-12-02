@@ -5,14 +5,19 @@ x <- 1:10
 # implement the following R functions in cpp
 # all()
 
-all(c(T,F))
-all(c(T,T,T))
-all(c(T,T,T,F))
+scenarios <- list(
+  c(T,F),
+  c(T,T,T),
+  c(T,T,T,T,F),
+  c(F,T,F,T),
+  c(T,T,T,F),
+  c(T,T)
+)
 
 # vector input and scalar output
 # need to track if there is any not TRUE statement
 
-cppFunction('bool cppAll(LogicalVector x){
+cppFunction('bool cpp_all(LogicalVector x){
             int n = x.size();
             double y = 0;
             
@@ -22,13 +27,14 @@ cppFunction('bool cppAll(LogicalVector x){
             return y == n;
             }')
 
+map_lgl(scenarios, all) == map_lgl(scenarios, cpp_all)
 
-cppAll(c(T,F,F,F))
-cppAll(c(F,F,F,T))
-cppAll(c(T,F))
-cppAll(c(T,T,T))
-cppAll(c(T,T,T,F))
-cppAll(c(T,T))
+
+
+microbenchmark(
+  map_lgl(scenarios, all) ,
+  map_lgl(scenarios, cpp_all)
+)
 
 
 
@@ -39,7 +45,7 @@ cumprod(x)
 cumprod(1:3)
 
 
-cppFunction('NumericVector cppcumProd(NumericVector x){
+cppFunction('NumericVector cpp_cumprod(NumericVector x){
           int n = x.size();
           NumericVector out(n);
           
@@ -51,29 +57,23 @@ cppFunction('NumericVector cppcumProd(NumericVector x){
 }')
 
 
-cppcumProd(1:3)
-cppcumProd(x)
+cpp_cumprod(1:3)
+cpp_cumprod(x)
 cumprod(x)
 
-# grouping comes for free 
+c(1, -10, 20) %>% cumprod
+c(1, -10, 20) %>% cpp_cumprod
+
+
+# grouping comes for free in dplyr, at least
 tibble(x=x) %>% 
   group_by(grp = ifelse(x %% 2 == 0, "even", "odd")) %>% 
-  mutate(cprod = cppcumProd(x)) %>% 
+  mutate(cprod = cpp_cumprod(x)) %>% 
   filter(grp == "odd")
 
 
-# cummin(), 
-
-cummin(x)
-cummin(5:1)
-cummin(sample(1:100, 10))
-
-
-
-
-
 # return the lowest value up to taht point
-cppFunction('NumericVector cppCumIn(NumericVector x){
+cppFunction('NumericVector cpp_cumin(NumericVector x){
           int n = x.size();
           NumericVector out(n);
           out[0] = x[0];
@@ -87,9 +87,9 @@ cppFunction('NumericVector cppCumIn(NumericVector x){
 }')
 
 cummin(c(5,4,6))
-cppCumIn(x)
-cppCumIn(3:1)
-cppCumIn(5:1)
+cpp_cumin(x)
+cpp_cumin(3:1)
+cpp_cumin(5:1)
 
 # cummax(). ~ skip since similar to cummax 
 cppFunction('NumericVector cpp_cummax(NumericVector x){
@@ -116,7 +116,7 @@ diff(c(1,3,5,7), lag = 1)
 diff(c(1:10), lag = 1)
 
 # find the difference in values between subsequent numbers
-cppFunction('NumericVector cppDiff(NumericVector x, int lag){
+cppFunction('NumericVector cpp_diff(NumericVector x, int lag){
             int n = x.size();
             NumericVector out(n);
             
@@ -129,14 +129,18 @@ cppFunction('NumericVector cppDiff(NumericVector x, int lag){
 }')
 
 
-cppDiff(x, lag = 1)
+cpp_diff(x, lag = 1)
 diff(x, lag = 1)
 
-cppDiff(rev(x), lag = 1)
+cpp_diff(rev(x), lag = 1)
 diff(rev(x), lag =1)
 
+cpp_diff(rev(x), lag = 2) # fuck ; still buggy
+diff(rev(x), lag =2)
+
+
 microbenchmark(
-  cppDiff(x, lag = 1),
+  cpp_diff(x, lag = 1),
   diff(x, lag = 1)
 )
 
@@ -148,14 +152,13 @@ range(x)
 range(c(1,5))
 range(c(1,3,5))
 
-# loop through X and find the max, and then return them as a vector
-cppFunction('NumericVector cppRange(NumericVector x){
+# loop through X and find the max/min, and then return them as a vector
+cppFunction('NumericVector cpp_range(NumericVector x){
        int n = x.size();
        int max;
        int min;
        max = x[0];
        min = x[0];
-
        
        for(int i = 0; i < n; ++i){
           if(i > 0){
@@ -169,11 +172,11 @@ cppFunction('NumericVector cppRange(NumericVector x){
             
 }')
 
-cppRange(1:10)
-cppRange(c(3,2,8))
-cppRange(c(3,2))
-cppRange(c(2,3))
-cppRange(c(1,2,3))
+cpp_range(1:10)
+cpp_range(c(3,2,8))
+cpp_range(c(3,2))
+cpp_range(c(2,3))
+cpp_range(c(1,2,3))
 range(c(1,2,3,4,5,6))
 
 
@@ -181,7 +184,7 @@ range(c(1,2,3,4,5,6))
 runif(n = 1e6, 1, 1e7) %>% round -> x2
 microbenchmark(
   range(x2 ),
-  cppRange(x2)
+  cpp_range(x2)
 )
 
 # 
@@ -190,7 +193,7 @@ microbenchmark(
 # two pass algorithm 
 # get the mean first, and then generate 
 
-cppFunction('double cppVar(NumericVector x){
+cppFunction('double cpp_var(NumericVector x){
             int n = x.size();
             double sum = 0;
             
@@ -209,18 +212,18 @@ cppFunction('double cppVar(NumericVector x){
 }')
 
 var(x)
-cppVar(x)
+cpp_var(x)
 
 microbenchmark(
   var(x),
-  cppVar(x)
+  cpp_var(x)
 )
 
-cppVar(x2)
+cpp_var(x2)
 var(x2)
 
 x3 <- runif(n = 1e6, -10, 10) 
-near(cppVar(x3),var(x3))
+near(cpp_var(x3),var(x3))
 
 # Rewrite any of the functions from the first exercise to deal with missing values. If na.rm is true, ignore the missing values. If na.rm is false, return a missing value if the input contains any missing values. Some good functions to practice with are min(), max(), range(), mean(), and var().
 
@@ -229,7 +232,7 @@ near(cppVar(x3),var(x3))
 x <- 1:10
 
 # report on SIZE if or not NA
-cppFunction('int cppLength(NumericVector x, bool rm_na = false){
+cppFunction('int cpp_length(NumericVector x, bool rm_na = false){
   if(rm_na == false){
   int n = x.size();
   return(n);
@@ -240,13 +243,13 @@ cppFunction('int cppLength(NumericVector x, bool rm_na = false){
   }
 }')
 
-cppLength(1:5)
-cppLength(c(1:5, NA), rm_na = FALSE)
-cppLength(c(1:5, NA), rm_na = T)
+cpp_length(1:5)
+cpp_length(c(1:5, NA), rm_na = FALSE)
+cpp_length(c(1:5, NA), rm_na = T)
 
 # get min w/ NA.RM
 # if we detect an NA 
-cppFunction('double cppMin(NumericVector x, bool na_rm = false){
+cppFunction('double cpp_min(NumericVector x, bool na_rm = false){
        if(na_rm == true) x = x[!is_na(x)] ;
        int n = x.size();
        double min;
@@ -260,16 +263,21 @@ cppFunction('double cppMin(NumericVector x, bool na_rm = false){
             
 }')
 
-cppMin(x) # works
-cppMin(x, na_rm = T) # works
-cppMin(c(NA,x), na_rm = T) # works
-cppMin(c(NA,x)) # default, works by accident ?
-cppMin(c(NA,x), na_rm = F) # works, but by accident ?
-cppMin(c(1:99, NA))
-cppMin(c(1,NA))
-cppMin(1:5)
-cppMin(5:1)
-cppMin(c(1:3),na_rm = T)
+cpp_min(x) # works
+cpp_min(x, na_rm = T) # works
+cpp_min(c(NA,x), na_rm = T) # works
+cpp_min(c(NA,x)) # default, works by accident ?
+cpp_min(c(NA,x), na_rm = F) # works, but by accident ?
+cpp_min(c(1:99, NA))
+cpp_min(c(1,NA))
+cpp_min(1:5)
+cpp_min(5:1)
+cpp_min(c(1:3),na_rm = T)
 
-cppMin(c(1,2,3,NA),rm_na = TRUE)
+cpp_min(c(1,2,3,NA),rm_na = TRUE)
 # Rewrite cumsum() and diff() so they can handle missing values. Note that these functions have slightly more complicated behaviour. 
+
+
+# na solution
+# immediately count NAs -> if count > 0 -> NA 
+# ELSE actual solution 
