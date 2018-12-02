@@ -188,7 +188,7 @@ microbenchmark(
 # var. Read about the approaches you can take on wikipedia. Whenever implementing a numerical algorithm, it's always good to check what is already known about the problem.
 
 # two pass algorithm 
-# get the mean first
+# get the mean first, and then generate 
 
 cppFunction('double cppVar(NumericVector x){
             int n = x.size();
@@ -221,3 +221,55 @@ var(x2)
 
 x3 <- runif(n = 1e6, -10, 10) 
 near(cppVar(x3),var(x3))
+
+# Rewrite any of the functions from the first exercise to deal with missing values. If na.rm is true, ignore the missing values. If na.rm is false, return a missing value if the input contains any missing values. Some good functions to practice with are min(), max(), range(), mean(), and var().
+
+
+# try out min
+x <- 1:10
+
+# report on SIZE if or not NA
+cppFunction('int cppLength(NumericVector x, bool rm_na = false){
+  if(rm_na == false){
+  int n = x.size();
+  return(n);
+  } else {
+  x = x[!is_na(x)];
+  int n = x.size();
+  return(n);
+  }
+}')
+
+cppLength(1:5)
+cppLength(c(1:5, NA), rm_na = FALSE)
+cppLength(c(1:5, NA), rm_na = T)
+
+# get min w/ NA.RM
+# if we detect an NA 
+cppFunction('double cppMin(NumericVector x, bool na_rm = false){
+       if(na_rm == true) x = x[!is_na(x)] ;
+       int n = x.size();
+       double min;
+       min = x[0];
+       for(int i = 0; i < n; ++i){
+          if(i > 0){
+            if(x[i] < min) min = x[i];
+          }
+       } 
+       return min;
+            
+}')
+
+cppMin(x) # works
+cppMin(x, na_rm = T) # works
+cppMin(c(NA,x), na_rm = T) # works
+cppMin(c(NA,x)) # default, works by accident ?
+cppMin(c(NA,x), na_rm = F) # works, but by accident ?
+cppMin(c(1:99, NA))
+cppMin(c(1,NA))
+cppMin(1:5)
+cppMin(5:1)
+cppMin(c(1:3),na_rm = T)
+
+cppMin(c(1,2,3,NA),rm_na = TRUE)
+# Rewrite cumsum() and diff() so they can handle missing values. Note that these functions have slightly more complicated behaviour. 
