@@ -64,6 +64,8 @@ cumprod(x)
 c(1, -10, 20) %>% cumprod
 c(1, -10, 20) %>% cpp_cumprod
 
+cpp_cumprod(5:1)
+cumprod(5:1)
 
 # grouping comes for free in dplyr, at least
 tibble(x=x) %>% 
@@ -129,6 +131,14 @@ cppFunction('NumericVector cpp_diff(NumericVector x, int lag){
 }')
 
 
+cppFunction('int cpp_diff2(double x){
+    double y;
+    y = x - NA_REAL;
+    return y;
+}')
+
+cpp_diff(1)
+
 cpp_diff(x, lag = 1)
 diff(x, lag = 1)
 
@@ -177,6 +187,7 @@ cpp_range(c(3,2,8))
 cpp_range(c(3,2))
 cpp_range(c(2,3))
 cpp_range(c(1,2,3))
+cpp_range(c(-10, -15, -100))
 range(c(1,2,3,4,5,6))
 
 
